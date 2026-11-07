@@ -1,0 +1,52 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Zombie_Outbreak_Android_V0.2.zip"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-android:
+    name: Export Godot 4.3 Android APK
+    runs-on: ubuntu-22.04
+    container:
+      image: barichello/godot-ci:4.3
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Verify build environment
+        run: |
+          godot --version
+          java -version
+          test -d /root/.local/share/godot/export_templates/4.3.stable
+          test -f /root/debug.keystore
+
+      - name: Extract project
+        run: |
+          unzip -q Zombie_Outbreak_Android_V0.2.zip -d .
+          test -f zombie_outbreak_android/project.godot
+          test -f zombie_outbreak_android/export_presets.cfg
+
+      - name: Import and validate project
+        run: |
+          godot --headless --editor --path zombie_outbreak_android --quit
+
+      - name: Export debug APK
+        run: |
+          mkdir -p build
+          godot --headless --path zombie_outbreak_android --export-debug "Android" "$GITHUB_WORKSPACE/build/Zombie_Outbreak_V0.2-debug.apk"
+          test -s build/Zombie_Outbreak_V0.2-debug.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Zombie-Outbreak-Android-V0.2
+          path: build/Zombie_Outbreak_V0.2-debug.apk
+          if-no-files-found: error
+          retention-days: 14
